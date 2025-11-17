@@ -1,0 +1,7 @@
+Δ noise_far (ours-base): -0.0006
+Δ noise_near (ours-base): -0.0005
+Δ grad_near (ours-base): -0.0474
+Δ SNR_far (ours-base): 0.4019
+Δ SNR_near (ours-base): 0.4772
+Δ very_low_freq std: 0.0147
+mean Spearman(depth,intensity): 0.9463
