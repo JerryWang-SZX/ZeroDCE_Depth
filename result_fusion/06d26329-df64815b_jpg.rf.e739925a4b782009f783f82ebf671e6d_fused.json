@@ -1,0 +1,16 @@
+[
+  {
+    "class_id": 0,
+    "class_name": "person",
+    "confidence": 0.5196592807769775,
+    "box_xyxy": [
+      27.35896873474121,
+      191.12661743164062,
+      59.300132751464844,
+      287.7286376953125
+    ],
+    "source": "unmatched_orig",
+    "pair_iou": null,
+    "gate_enh": null
+  }
+]

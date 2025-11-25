@@ -235,12 +235,46 @@ def fuse_detections(
     
     return fused, stats
 
-def visualize_fused_detections(image_enh: np.ndarray, fused: List[Dict], output_path: str):
-    fig, ax = plt.subplots(figsize=(12, 8))
+def visualize_fused_detections(image_orig: np.ndarray, detections_orig: List[Dict], image_enh: np.ndarray, detections_enh: List[Dict], fused: List[Dict], output_path: str):
+    fig, axes = plt.subplots(1, 3, figsize=(12, 8))
+
+    axes[0].imshow(image_orig)
+    axes[0].set_title("Original Image")
+    axes[0].axis('off')
+
+    for det in detections_orig:
+        x1, y1, x2, y2 = det['box']
+        w_box = x2 - x1
+        h_box = y2 - y1
+
+        color = 'red'
+
+        rect = patches.Rectangle((x1, y1), w_box, h_box, linewidth=2, edgecolor=color, facecolor='none')
+        axes[0].add_patch(rect)
+        
+        label = f"{det['class_name']} {det['confidence']:.2f}"
+        axes[0].text(x1, y1 - 5, label, color=color, fontsize=8, bbox=dict(facecolor='black', alpha=0.5))
     
-    ax.imshow(image_enh)
-    ax.set_title("Fused Detections on Enhanced")
-    ax.axis('off')
+    axes[1].imshow(image_enh)
+    axes[1].set_title("Enhanced Image")
+    axes[1].axis('off')
+
+    for det in detections_enh:
+        x1, y1, x2, y2 = det['box']
+        w_box = x2 - x1
+        h_box = y2 - y1
+
+        color = 'green'
+
+        rect = patches.Rectangle((x1, y1), w_box, h_box, linewidth=2, edgecolor=color, facecolor='none')
+        axes[1].add_patch(rect)
+        
+        label = f"{det['class_name']} {det['confidence']:.2f}"
+        axes[1].text(x1, y1 - 5, label, color=color, fontsize=8, bbox=dict(facecolor='black', alpha=0.5))
+
+    axes[2].imshow(image_enh)
+    axes[2].set_title("Fused Detections on Enhanced")
+    axes[2].axis('off')
     
     # Overlay fused detections on enhanced image
     for det in fused:
@@ -255,10 +289,10 @@ def visualize_fused_detections(image_enh: np.ndarray, fused: List[Dict], output_
         else: color = 'yellow' # unmatched
         
         rect = patches.Rectangle((x1, y1), w_box, h_box, linewidth=2, edgecolor=color, facecolor='none')
-        ax.add_patch(rect)
+        axes[2].add_patch(rect)
         
         label = f"{det['class_name']} {det['confidence']:.2f}"
-        ax.text(x1, y1 - 5, label, color=color, fontsize=8, bbox=dict(facecolor='black', alpha=0.5))
+        axes[2].text(x1, y1 - 5, label, color=color, fontsize=8, bbox=dict(facecolor='black', alpha=0.5))
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=100, bbox_inches='tight')
@@ -372,9 +406,10 @@ def main(args):
         
         # Export visualization image can be slow
         if args.visualize:
+            image_orig = load_image(str(image_path))
             image_enh = load_image(str(enh_image_path))
             vis_path = output_dir / f"{stem}_fused.png"
-            visualize_fused_detections(image_enh, fused, str(vis_path))
+            visualize_fused_detections(image_orig, detections_orig, image_enh, detections_enh, fused, str(vis_path))
     
     elapsed = time.time() - start_time
     
