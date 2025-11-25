@@ -39,12 +39,11 @@ def lowlight(image_path):
     end_time = (time.time() - start)
 
     print(end_time)
-    image_path = image_path.replace('test_data', 'result_Zero_DCE++')
-
-    result_path = image_path
-    if not os.path.exists(image_path.replace('/' + image_path.split("/")[-1], '')):
-        os.makedirs(image_path.replace('/' + image_path.split("/")[-1], ''))
-    # import pdb;pdb.set_trace()
+    # Save into result directory: result_Zero_DCE++/real/<original_filename>
+    base_name = os.path.basename(image_path)
+    result_dir = os.path.join('result_Zero_DCE++', 'real')
+    os.makedirs(result_dir, exist_ok=True)
+    result_path = os.path.join(result_dir, base_name)
     torchvision.utils.save_image(enhanced_image, result_path)
     return end_time
 
@@ -53,12 +52,15 @@ if __name__ == '__main__':
 
     with torch.no_grad():
 
-        filePath = 'data/test_data/'
-        file_list = os.listdir(filePath)
+        filePath = 'bdd100k-night-v3.yolov11/test/images'
+        patterns = ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.PNG']
+        image_list = []
+        for patt in patterns:
+            image_list.extend(glob.glob(os.path.join(filePath, patt)))
+        image_list = sorted(image_list)
+
         sum_time = 0
-        for file_name in file_list:
-            test_list = glob.glob(filePath + file_name + "/*")
-        for image in test_list:
+        for image in image_list:
             print(image)
             sum_time = sum_time + lowlight(image)
 

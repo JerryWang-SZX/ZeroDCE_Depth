@@ -10,7 +10,7 @@ to achieve cleaner distant/noisy regions and clearer foreground subjects.
 Usage Example (Recommended):
   python lowlight_depth.py \
       --input data/test_data \
-      --output result_Zero_DCEpp_depth \
+      --output result_Zero_DCE++_depth \
       --weights snapshots_Zero_DCE++/Epoch99.pth \
       --depth_dir midas_depth --denoise_far --use_conf \
       --far_gamma 2.0 --intensity_gate --gamma_i 2.0 \
@@ -18,7 +18,7 @@ Usage Example (Recommended):
       --device 0
 
 Standard Inference Only (same as original):
-  python lowlight_depth.py --input data/test_data --output result_Zero_DCEpp --weights snapshots_Zero_DCE++/Epoch99.pth
+  python lowlight_depth.py --input data/test_data --output result_Zero_DCE++ --weights snapshots_Zero_DCE++/Epoch99.pth
 """
 
 import os, glob, argparse, time
@@ -298,7 +298,9 @@ def infer_one(image_path: Path,
 def main():
     parser = argparse.ArgumentParser(description="Zero-DCE++ with depth-aware postprocessing (ultra noise suppression)")
     parser.add_argument("--input", type=str, help="Input image root directory (can include subdirectories)", default="data/test_data/real")
-    parser.add_argument("--output", type=str, help="Output root directory", default="data/result_Zero_DCEpp_depthpp")
+    parser.add_argument('--dataset_dir', type=str, default=None, help='Optional dataset root (e.g. bdd100k-finetune.v3-bdd100k-night-v3.yolov11)')
+    parser.add_argument('--split', type=str, default='test', choices=['test','train','valid','images','real'], help='Dataset split under dataset_dir to use')
+    parser.add_argument("--output", type=str, help="Output root directory", default="data/result_Zero_DCE++_depth")
     parser.add_argument("--weights", default="snapshots_Zero_DCE++/Epoch99.pth", type=str, help="Model weights path")
     parser.add_argument("--scale_factor", default=12, type=int, help="scale_factor for Zero-DCE++")
     parser.add_argument("--device", default="0", type=str, help="CUDA device ID (e.g., '0') or 'cpu'")
@@ -355,8 +357,16 @@ def main():
     # Depth directory
     depth_dir = Path(args.depth_dir) if args.depth_dir is not None else None
 
-    # Collect input images
-    in_root = Path(args.input)
+    # Resolve input images: prefer dataset_dir/<split>/images when provided
+    if args.dataset_dir:
+        candidate = Path(args.dataset_dir) / args.split / 'images'
+        if candidate.exists():
+            in_root = candidate
+        else:
+            candidate2 = Path(args.dataset_dir) / args.split
+            in_root = candidate2 if candidate2.exists() else Path(args.input)
+    else:
+        in_root = Path(args.input)
     out_root = Path(args.output)
     paths = []
     for e in args.exts:

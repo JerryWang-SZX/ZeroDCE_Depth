@@ -12,10 +12,10 @@ Compares the original ZeroDCE++ vs our depth-gated version, measuring under "bri
 Usage:
 python eval_depth_aware_metrics.py \
   --orig  data/test_data/real \
-  --base  result_Zero_DCEpp/real \
-  --ours  result_Zero_DCEpp_depth_bright \
+  --base  result_Zero_DCE++/real \
+  --ours  result_Zero_DCE++_depth \
   --depth midas_depth \
-  --ours_debug result_Zero_DCEpp_depth_bright/_debug \
+  --ours_debug result_Zero_DCE++_depth/_debug \
   --out   eval_report
 
 Notes:

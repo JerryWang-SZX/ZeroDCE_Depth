@@ -6,7 +6,7 @@ Visualize "enhancement strength mask" and analyze its correlation with depth.
 Usage Example:
   python vis_strength.py \
       --orig datasets/lowlight_test \
-      --enh  results/lowlight_test_zero_dcepp \
+      --enh  results/lowlight_test_zero_dce++ \
       --depth midas_depth \
       --out vis_strength \
       --exts .png .jpg .jpeg \

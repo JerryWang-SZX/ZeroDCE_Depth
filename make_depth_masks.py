@@ -83,7 +83,16 @@ def multi_scale_conf(model, tf, bgr, short_side, device,
 
 # ---------- Main Flow ----------
 def main(args):
-    in_dir = Path(args.input)
+    # Support dataset style folder: dataset_dir/<split>/images
+    if getattr(args, 'dataset_dir', None):
+        cand = Path(args.dataset_dir) / args.split / 'images'
+        if cand.exists():
+            in_dir = cand
+        else:
+            cand2 = Path(args.dataset_dir) / args.split
+            in_dir = cand2 if cand2.exists() else Path(args.input)
+    else:
+        in_dir = Path(args.input)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -127,6 +136,8 @@ def main(args):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser("Make depth masks (MiDaS) for lowlight raw images")
     ap.add_argument("--input", help="Pre-enhancement image directory (original image directory used by lowlight_test.py)", default="data/test_data/real")
+    ap.add_argument('--dataset_dir', type=str, default=None, help='Optional dataset root (e.g. bdd100k-finetune.v3-bdd100k-night-v3.yolov11)')
+    ap.add_argument('--split', type=str, default='test', choices=['test','train','valid','images','real'], help='Dataset split under dataset_dir to use')
     ap.add_argument("--out", help="Save directory", default="midas_depth")
     ap.add_argument("--short_side", type=int, default=384, help="MiDaS short side")
     ap.add_argument("--with_conf", action="store_true", help="Compute and save multi-scale consistency confidence")

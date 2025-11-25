@@ -1,0 +1,16 @@
+[
+  {
+    "class_id": 7,
+    "class_name": "truck",
+    "confidence": 0.668076753616333,
+    "box_xyxy": [
+      370.998779296875,
+      208.4329833984375,
+      428.7940673828125,
+      264.77313232421875
+    ],
+    "source": "unmatched_orig",
+    "pair_iou": null,
+    "gate_enh": null
+  }
+]

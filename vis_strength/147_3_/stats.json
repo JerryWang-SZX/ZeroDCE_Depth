@@ -1,6 +1,0 @@
-{
-  "stem": "147_3_",
-  "pearson_depth_vs_logR": 0.021505105664919397,
-  "spearman_depth_vs_logR": 0.03849366890974582,
-  "notes": "logR = log((Y_enh+eps)/(Y_orig+eps)); depth=Dnorm(near=1)."
-}
