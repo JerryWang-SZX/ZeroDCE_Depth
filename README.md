@@ -143,23 +143,34 @@ Evaluation: `eval_depth_aware_metrics.py` (brightness-normalized). Summary from 
 
 ---
 
-## 6) Run fusion:
+## 7) Fusion and COCO evaluation:
 
 ```bash
-python fusion_detections.py \
+python fusion_eval.py \
   --dataset_dir bdd100k-night-v3.yolov11 \
   --split test \
-  --enh result_Zero_DCE++_depth \
   --model yolo11n.pt \
-  --iou_thresh 0.60 --margin_thresh 0.02 --unmatched_thresh 0.7 \
-  --output result_fusion \
+  --conf_thresh 0.20 \
+  --iou_thresh 0.60 --margin_thresh 0.02 --unmatched_depth_thresh 0.4 \
+  --enh result_Zero_DCE++_depth \
+  --output result_fusion_eval \
   --device 0 --visualize
 ```
 
-In the results visualization:
+In the "Fused Detections" visualization:
 ```
-red = detection from orig
-green = detection from enh
-blue = detection fallback to orig
-yellow = unmatched detection
+'orig' = 'red'
+'enh' = 'cyan'
+'orig_fallback' = 'darkred'
+'unmatched_orig' = 'magenta'
+'unmatched_enh' = 'green'
+```
+
+Outputs COCO metrics:
+```
+mAP@[.5:.95]  - Standard COCO mAP across IoU thresholds [0.5:0.95:0.05]
+mAP@50        - Mean AP at IoU threshold 0.5
+Recall        - Average recall across all IoU thresholds
+Predictions   - Total number of detections
+Ground Truths - Total number of GT boxes
 ```

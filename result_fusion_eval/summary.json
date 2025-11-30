@@ -1,0 +1,35 @@
+{
+  "images_processed": 60,
+  "fusion_statistics": {
+    "total_images": 60,
+    "total_pairs": 178,
+    "chosen_orig": 82,
+    "chosen_enh": 88,
+    "fallback_orig": 8,
+    "unmatched_orig": 100,
+    "unmatched_enh": 83
+  },
+  "coco_metrics": {
+    "original": {
+      "mAP_50_95": 0.12016406934152135,
+      "mAP_50": 0.18777208744986293,
+      "recall": 0.134699496700871,
+      "num_predictions": 278,
+      "num_gts": 881
+    },
+    "enhanced": {
+      "mAP_50_95": 0.11291525490274633,
+      "mAP_50": 0.1854284088287747,
+      "recall": 0.1278989011462403,
+      "num_predictions": 266,
+      "num_gts": 881
+    },
+    "fused": {
+      "mAP_50_95": 0.12401592463128921,
+      "mAP_50": 0.19912225221050978,
+      "recall": 0.1474362472510612,
+      "num_predictions": 361,
+      "num_gts": 881
+    }
+  }
+}
