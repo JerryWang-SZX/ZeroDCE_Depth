@@ -151,7 +151,7 @@ python fusion_eval.py \
   --split test \
   --model yolo11n.pt \
   --conf_thresh 0.20 \
-  --iou_thresh 0.60 --margin_thresh 0.02 --unmatched_depth_thresh 0.4 \
+  --iou_thresh 0.40 --margin_thresh 0.02 --unmatched_depth_thresh 0.4 \
   --enh result_Zero_DCE++_depth \
   --output result_fusion_eval \
   --device 0 --visualize
@@ -161,9 +161,9 @@ In the "Fused Detections" visualization:
 ```
 'orig' = 'red'
 'enh' = 'cyan'
-'orig_fallback' = 'darkred'
-'unmatched_orig' = 'magenta'
-'unmatched_enh' = 'green'
+'orig_fallback' = 'magenta'
+'unmatched_orig' = 'darkred'
+'unmatched_enh' = 'dodgerblue'
 ```
 
 Outputs COCO metrics:

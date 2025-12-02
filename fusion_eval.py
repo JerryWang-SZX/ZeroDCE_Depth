@@ -101,8 +101,6 @@ def get_bdd100k_class_mapping():
         5: 11,   # bus
         7: 21,   # truck
         9: 17,   # traffic light
-        10: 16,  # fire hydrant
-        11: 18,  # stop sign
     }
 
 def run_yolo_inference(model: YOLO, image_path: str, conf_thresh: float, max_box_width_ratio: float = 0.8) -> List[Dict]:
@@ -445,9 +443,9 @@ def visualize_detections(image_gt: np.ndarray, gt_dets: List[Dict],
         source = det['source']
         if source == 'orig': color = 'red'
         elif source == 'enh': color = 'cyan'
-        elif source == 'orig_fallback': color = 'darkred'
-        elif source == 'unmatched_orig': color = 'magenta'
-        elif source == 'unmatched_enh': color = 'green'
+        elif source == 'orig_fallback': color = 'magenta'
+        elif source == 'unmatched_orig': color = 'darkred'
+        elif source == 'unmatched_enh': color = 'dodgerblue'
         else: color = 'black'
         
         rect = patches.Rectangle((x1, y1), w_box, h_box, linewidth=2, edgecolor=color, facecolor='none')
@@ -713,7 +711,7 @@ if __name__ == "__main__":
                        help='Maximum allowed box width percent of image width (filters car hoods)')
     
     # Fusion parameters
-    parser.add_argument('--iou_thresh', type=float, default=0.60, 
+    parser.add_argument('--iou_thresh', type=float, default=0.40, 
                        help='IoU threshold for matching orig/enh detections')
     parser.add_argument('--margin_thresh', type=float, default=0.02, 
                        help='Score margin threshold for fallback')
