@@ -1,0 +1,76 @@
+!python fusion_eval.py \
+  --dataset_dir bdd100k-night-v3.yolov11 \
+  --split test \
+  --model yolo11n.pt \
+  --conf_thresh 0.20 \
+  --iou_thresh 0.40 --margin_thresh 0.02 --unmatched_depth_thresh 0.4 \
+  --enh result_Zero_DCE++_depth \
+  --output result_fusion_eval \
+  --device 0 --visualize
+
+Using device: cuda:0
+YOLO model: yolo11n.pt
+Found 60 images in bdd100k-night-v3.yolov11/test/images
+Processing images: 100% 60/60 [01:11<00:00,  1.19s/it]
+
+Fusion & COCO Evaluation Results:
+Images processed: 60
+
+Fusion Statistics:
+  Total matched pairs: 185
+    Chosen from original: 97
+    Chosen from enhanced: 81
+    Fallback to original: 7
+  Unmatched from original: 89
+  Unmatched from enhanced (g_bar > threshold): 78
+
+COCO Metrics (Average across images):
+
+Original Branch:
+  mAP@[.5:.95]: 0.1207
+  mAP@50:       0.1892
+  mAP@75:       0.1299
+  Precision:    0.3081
+  Recall:       0.1344
+  FPR:          0.1205
+  FNR:          0.7953
+  F1 Score:     0.1749
+  Predictions:  274
+  Ground Truths: 881
+
+Enhanced Branch:
+  mAP@[.5:.95]: 0.1183
+  mAP@50:       0.1870
+  mAP@75:       0.1250
+  Precision:    0.3042
+  Recall:       0.1316
+  FPR:          0.1253
+  FNR:          0.8004
+  F1 Score:     0.1683
+  Predictions:  272
+  Ground Truths: 881
+
+Naive Fused Branch:
+  mAP@[.5:.95]: 0.1285
+  mAP@50:       0.2034
+  mAP@75:       0.1385
+  Precision:    0.2671
+  Recall:       0.1502
+  FPR:          0.1787
+  FNR:          0.7708
+  F1 Score:     0.1775
+  Predictions:  361
+  Ground Truths: 881
+
+Fused Branch:
+  mAP@[.5:.95]: 0.1272
+  mAP@50:       0.2028
+  mAP@75:       0.1390
+  Precision:    0.2695
+  Recall:       0.1492
+  FPR:          0.1744
+  FNR:          0.7717
+  F1 Score:     0.1773
+  Predictions:  352
+  Ground Truths: 881
+Visualizations saved to vis_fusion_eval

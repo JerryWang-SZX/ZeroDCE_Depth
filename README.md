@@ -4,33 +4,7 @@
 
 ---
 
-## 1) Repository Layout (ours)
-
-We added TODO: [number] scripts (non-intrusive to the original Zero-DCE++ code):
-
-```
-Zero-DCE++/
-├── make_depth_masks.py              # (NEW) MiDaS depth/confidence precomputation
-├── lowlight_depth.py                # (NEW) Depth-aware post-process for inference
-├── vis_strength.py                  # (NEW) Quick correlation check (depth vs gain)
-├── eval_depth_aware_metrics.py      # (NEW) Brightness-normalized evaluation suite
-├── fusion_detections.py             # (NEW) TODO: add info
-└── (original files: lowlight_test.py, lowlight_train.py, model.py, etc.)
-```
-
-Outputs:
-```
-midas_depth/                         # *_Dnorm.npy/png, *_conf.npy (optional)
-result_Zero_DCE++/                   # vanilla Zero-DCE++ baseline (unchanged)
-result_Zero_DCE++_depth*/            # ours (presets), each with:
-    └── _debug/                      # w_far.png, g_far.png, Dnorm.png, conf.png
-result__fusion                       # TODO: add info
-eval_report/                         # depth_gate_eval.csv + summary.txt
-```
-
----
-
-## 2) Quick Start
+## 1) Quick Start
 
 ### A) Prepare environment
 - Python ≥ 3.8, PyTorch per your CUDA
@@ -57,22 +31,6 @@ Keep results under `result_Zero_DCE++/...`
 
 ### D) Run our **depth-aware** adapter on top of Zero-DCE++
 
-**Balanced preset (recommended for report):**
-```bash
-python lowlight_depth.py \
-  --input bdd100k-night-v3.yolov11/test/images \
-  --output result_Zero_DCE++_depth \
-  --weights snapshots_Zero_DCE++/Epoch99.pth \
-  --depth_dir midas_depth --use_conf \
-  --denoise_far --far_gamma 3.0 \
-  --strong 25 25 7 21 --light 1 1 7 21 --blend_back 0.10 \
-  --intensity_gate --gamma_i 3.0 \
-  --gate_bias 0.35 --gate_floor 0.28 --gate_ceil 0.98 --anti_vign_sigma 120 \
-  --d_p1 10 --d_p2 90 --d_pow 0.6 \
-  --post_gain 1.22 --post_gamma 0.88 --lift 0.01 \
-  --export_debug --device 0
-```
-
 **Aggressive preset (max far-field suppression):**
 ```bash
 python lowlight_depth.py \
@@ -89,9 +47,25 @@ python lowlight_depth.py \
   --export_debug --device 0
 ```
 
+**Balanced preset:**
+```bash
+python lowlight_depth.py \
+  --input bdd100k-night-v3.yolov11/test/images \
+  --output result_Zero_DCE++_depth \
+  --weights snapshots_Zero_DCE++/Epoch99.pth \
+  --depth_dir midas_depth --use_conf \
+  --denoise_far --far_gamma 3.0 \
+  --strong 25 25 7 21 --light 1 1 7 21 --blend_back 0.10 \
+  --intensity_gate --gamma_i 3.0 \
+  --gate_bias 0.35 --gate_floor 0.28 --gate_ceil 0.98 --anti_vign_sigma 120 \
+  --d_p1 10 --d_p2 90 --d_pow 0.6 \
+  --post_gain 1.22 --post_gamma 0.88 --lift 0.01 \
+  --export_debug --device 0
+```
+
 ---
 
-## 3) What the adapter actually does
+## 2) What the adapter actually does
 
 **Input:** original image `I0`, Zero-DCE++ output `I_enh`, MiDaS depth `Dnorm∈[0,1]` (near=1, far=0), optional confidence `conf∈[0,1]`.
 
@@ -103,7 +77,7 @@ python lowlight_depth.py \
 
 ---
 
-## 4) Evaluation (brightness-normalized)
+## 3) Evaluation (brightness-normalized)
 
 ```bash
 python eval_depth_aware_metrics.py \
@@ -124,26 +98,26 @@ Metrics compare **after brightness matching** to avoid the “darker looks clean
 
 ---
 
-## 5) Our Results (current run)
+## 4) Our Results (current run)
 
 **Setup.** Dataset: `data/test_data/real`; Baseline: `result_Zero_DCE++/real`; Ours: `result_Zero_DCE++_depth_tune`; Depth: `midas_depth/`.  
 Evaluation: `eval_depth_aware_metrics.py` (brightness-normalized). Summary from `eval_report/summary.txt`.
 
 | Metric (Δ = ours − base) | Result | Interpretation |
 |---|---:|---|
-| Δ noise_far | **−0.0006** | Far-field noise lower (good) |
-| Δ noise_near | **−0.0005** | Near-field noise lower (good) |
-| Δ SNR_far | **+0.4019** | Far-field SNR up (good) |
-| Δ SNR_near | **+0.4772** | Near-field SNR up (good) |
-| Δ grad_near | **−0.0474** | Slight softness near subject (tunable) |
-| Δ very_low_freq std | **+0.0147** | Small residual low-freq ring (tunable) |
-| mean Spearman(depth,intensity) | **0.9463** | Strong depth–intensity alignment |
+| Δ noise_far | **-0.0000** | Far-field noise lower (good) |
+| Δ noise_near | **-0.0001** | Near-field noise lower (good) |
+| Δ SNR_far | **-0.5569** | Far-field SNR up (good) |
+| Δ SNR_near | **+0.3733** | Near-field SNR up (good) |
+| Δ grad_near | **-0.0194** | Slight softness near subject (tunable) |
+| Δ very_low_freq std | **0.0138** | Small residual low-freq ring (tunable) |
+| mean Spearman(depth,intensity) | **0.8192** | Strong depth–intensity alignment |
 
 **Takeaway.** After **brightness alignment**, our method reduces noise in both far & near regions and **significantly increases SNR**. The gain correlates strongly with depth (far brighter/cleaner; near preserved). Minor trade-offs are tunable via `gate_floor`, `anti_vign_sigma`, `light/strong`, `blend_back`.
 
 ---
 
-## 7) Fusion and COCO evaluation:
+## 5) Fusion and COCO evaluation:
 
 ```bash
 python fusion_eval.py \
@@ -168,9 +142,14 @@ In the "Fused Detections" visualization:
 
 Outputs COCO metrics:
 ```
-mAP@[.5:.95]  - Standard COCO mAP across IoU thresholds [0.5:0.95:0.05]
-mAP@50        - Mean AP at IoU threshold 0.5
-Recall        - Average recall across all IoU thresholds
-Predictions   - Total number of detections
-Ground Truths - Total number of GT boxes
+'mAP_50_95': float(avg_map_50_95),
+'mAP_50': float(avg_map_50),
+'mAP_75': float(avg_map_75),
+'precision': float(avg_precision),
+'recall': float(avg_recall),
+'fpr': float(avg_fpr),
+'fnr': float(avg_fnr),
+'f1': float(avg_f1),
+'num_predictions': int(total_preds),
+'num_gts': int(total_gts),
 ```

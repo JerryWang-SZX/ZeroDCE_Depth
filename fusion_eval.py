@@ -260,6 +260,57 @@ def fuse_detections(
     
     return fused, stats
 
+def fuse_detections_naive(
+    detections_orig: List[Dict],
+    detections_enh: List[Dict],
+    gate_enh: Optional[np.ndarray],
+    pairs: List[Tuple[int, int, float]]
+) -> Tuple[List[Dict], Dict]:
+    """Naively Fuse detections from original and enhanced branches."""
+    fused = []
+    
+    matched_orig_set = set()
+    matched_enh_set = set()
+    
+    for idx_orig, idx_enh, iou in pairs:
+        matched_orig_set.add(idx_orig)
+        matched_enh_set.add(idx_enh)
+        
+        det_orig = detections_orig[idx_orig].copy()
+        det_enh = detections_enh[idx_enh].copy()
+        
+        score_orig = det_orig['confidence']
+        score_enh = det_enh['confidence']
+        
+        if score_enh > score_orig:
+            det_enh['source'] = 'enh'
+            det_enh['pair_iou'] = iou
+            det_enh['gate_enh'] = None
+            fused.append(det_enh)
+        else:
+            det_orig['source'] = 'orig'
+            det_orig['pair_iou'] = iou
+            det_orig['gate_enh'] = None
+            fused.append(det_orig)
+    
+    for i, det in enumerate(detections_orig):
+        if i not in matched_orig_set:
+            det = det.copy()
+            det['source'] = 'unmatched_orig'
+            det['pair_iou'] = None
+            det['gate_enh'] = None
+            fused.append(det)
+    
+    for i, det in enumerate(detections_enh):
+        if i not in matched_enh_set:
+            det = det.copy()
+            det['source'] = 'unmatched_enh'
+            det['pair_iou'] = None
+            det['gate_enh'] = None
+            fused.append(det)
+    
+    return fused
+
 def compute_coco_metrics(detections: List[Dict], gt_dets: List[Dict], iou_thresholds: List[float]) -> Dict[str, float]:
     """Compute COCO metrics for a single image."""
     
@@ -314,6 +365,8 @@ def compute_coco_metrics(detections: List[Dict], gt_dets: List[Dict], iou_thresh
     
     aps = []
     recalls = []
+    precisions = []
+    
     for iou_t_idx in range(len(iou_thresholds)):
         tp_curve = total_tp[:, iou_t_idx]
         fp_curve = total_fp[:, iou_t_idx]
@@ -331,15 +384,40 @@ def compute_coco_metrics(detections: List[Dict], gt_dets: List[Dict], iou_thresh
         ap = np.sum((recall_np[i + 1] - recall_np[i]) * precision_np[i + 1])
         aps.append(float(ap))
         recalls.append(float(recall[-1]) if len(recall) > 0 else 0.0)
+        precisions.append(float(precision[-1]) if len(precision) > 0 else 0.0)
     
     map_50 = aps[0] if len(aps) > 0 else 0.0
+    map_75 = aps[5] if len(aps) > 5 else 0.0  # IoU threshold at 0.75 is at index 5
     map_50_95 = np.mean(aps) if len(aps) > 0 else 0.0
     recall_avg = np.mean(recalls) if len(recalls) > 0 else 0.0
+    precision_avg = np.mean(precisions) if len(precisions) > 0 else 0.0
+    
+    # Calculate FPR, FNR, and F1 at IoU=0.5 (standard COCO metric)
+    iou_50_idx = 0
+    tp_at_50 = total_tp[-1, iou_50_idx] if len(total_tp) > 0 else 0
+    fp_at_50 = total_fp[-1, iou_50_idx] if len(total_fp) > 0 else 0
+    fn_at_50 = total_num_gt - tp_at_50
+    
+    # FPR = FP / (FP + TN), but in object detection TN is undefined, so we use FP / (FP + GT)
+    fpr = float(fp_at_50 / (fp_at_50 + total_num_gt + 1e-10)) if total_num_gt > 0 else 0.0
+    # FNR = FN / (FN + TP)
+    fnr = float(fn_at_50 / (fn_at_50 + tp_at_50 + 1e-10)) if (fn_at_50 + tp_at_50) > 0 else 0.0
+    
+    # F1 = 2 * (precision * recall) / (precision + recall)
+    if precision_avg + recall_avg > 0:
+        f1 = 2 * (precision_avg * recall_avg) / (precision_avg + recall_avg)
+    else:
+        f1 = 0.0
     
     return {
         'mAP_50_95': float(map_50_95),
         'mAP_50': float(map_50),
+        'mAP_75': float(map_75),
+        'precision': float(precision_avg),
         'recall': float(recall_avg),
+        'fpr': float(fpr),
+        'fnr': float(fnr),
+        'f1': float(f1),
         'num_predictions': len(sorted_preds),
         'num_gts': total_num_gt,
     }
@@ -522,6 +600,7 @@ def main(args):
         'orig': [],
         'enh': [],
         'fused': [],
+        'naive_fused': [],
     }
     
     all_fusion_stats = {
@@ -570,6 +649,7 @@ def main(args):
         pairs = find_matching_pairs(detections_orig, detections_enh, args.iou_thresh)
         fused, fusion_stats = fuse_detections(detections_orig, detections_enh, gate_enh, pairs, 
                                               args.margin_thresh, args.unmatched_depth_thresh)
+        naive_fused = fuse_detections_naive(detections_orig, detections_enh, gate_enh, pairs)
         
         # Update fusion stats
         all_fusion_stats['total_pairs'] += fusion_stats['total_pairs']
@@ -585,10 +665,12 @@ def main(args):
             metrics_orig = compute_coco_metrics(detections_orig, gt_dets, COCO_iou_thresholds)
             metrics_enh = compute_coco_metrics(detections_enh, gt_dets, COCO_iou_thresholds)
             metrics_fused = compute_coco_metrics(fused, gt_dets, COCO_iou_thresholds)
+            metrics_naive_fused = compute_coco_metrics(naive_fused, gt_dets, COCO_iou_thresholds)
             
             all_metrics['orig'].append(metrics_orig)
             all_metrics['enh'].append(metrics_enh)
             all_metrics['fused'].append(metrics_fused)
+            all_metrics['naive_fused'].append(metrics_naive_fused)
         
         # Save detections as JSON
         json_orig_path = output_dir / f"{stem}_orig.json"
@@ -608,18 +690,32 @@ def main(args):
     # Compute aggregate metrics
     def aggregate_metrics(metrics_list):
         if not metrics_list:
-            return {'mAP_50_95': 0.0, 'mAP_50': 0.0, 'recall': 0.0, 'num_predictions': 0, 'num_gts': 0}
+            return {
+                'mAP_50_95': 0.0, 'mAP_50': 0.0, 'mAP_75': 0.0,
+                'precision': 0.0, 'recall': 0.0, 'fpr': 0.0, 'fnr': 0.0, 'f1': 0.0,
+                'num_predictions': 0, 'num_gts': 0
+            }
         
         avg_map_50_95 = np.mean([m['mAP_50_95'] for m in metrics_list])
         avg_map_50 = np.mean([m['mAP_50'] for m in metrics_list])
+        avg_map_75 = np.mean([m['mAP_75'] for m in metrics_list])
+        avg_precision = np.mean([m['precision'] for m in metrics_list])
         avg_recall = np.mean([m['recall'] for m in metrics_list])
+        avg_fpr = np.mean([m['fpr'] for m in metrics_list])
+        avg_fnr = np.mean([m['fnr'] for m in metrics_list])
+        avg_f1 = np.mean([m['f1'] for m in metrics_list])
         total_preds = sum(m['num_predictions'] for m in metrics_list)
         total_gts = sum(m['num_gts'] for m in metrics_list)
         
         return {
             'mAP_50_95': float(avg_map_50_95),
             'mAP_50': float(avg_map_50),
+            'mAP_75': float(avg_map_75),
+            'precision': float(avg_precision),
             'recall': float(avg_recall),
+            'fpr': float(avg_fpr),
+            'fnr': float(avg_fnr),
+            'f1': float(avg_f1),
             'num_predictions': int(total_preds),
             'num_gts': int(total_gts),
         }
@@ -627,6 +723,7 @@ def main(args):
     agg_orig = aggregate_metrics(all_metrics['orig'])
     agg_enh = aggregate_metrics(all_metrics['enh'])
     agg_fused = aggregate_metrics(all_metrics['fused'])
+    agg_naive_fused = aggregate_metrics(all_metrics['naive_fused'])
     
     # Save summary
     summary = {
@@ -636,6 +733,7 @@ def main(args):
             'original': agg_orig,
             'enhanced': agg_enh,
             'fused': agg_fused,
+            'naive_fused': agg_naive_fused,
         }
     }
     
@@ -658,30 +756,51 @@ def main(args):
     print(f"\nOriginal Branch:")
     print(f"  mAP@[.5:.95]: {agg_orig['mAP_50_95']:.4f}")
     print(f"  mAP@50:       {agg_orig['mAP_50']:.4f}")
+    print(f"  mAP@75:       {agg_orig['mAP_75']:.4f}")
+    print(f"  Precision:    {agg_orig['precision']:.4f}")
     print(f"  Recall:       {agg_orig['recall']:.4f}")
+    print(f"  FPR:          {agg_orig['fpr']:.4f}")
+    print(f"  FNR:          {agg_orig['fnr']:.4f}")
+    print(f"  F1 Score:     {agg_orig['f1']:.4f}")
     print(f"  Predictions:  {agg_orig['num_predictions']}")
     print(f"  Ground Truths: {agg_orig['num_gts']}")
     
     print(f"\nEnhanced Branch:")
     print(f"  mAP@[.5:.95]: {agg_enh['mAP_50_95']:.4f}")
     print(f"  mAP@50:       {agg_enh['mAP_50']:.4f}")
+    print(f"  mAP@75:       {agg_enh['mAP_75']:.4f}")
+    print(f"  Precision:    {agg_enh['precision']:.4f}")
     print(f"  Recall:       {agg_enh['recall']:.4f}")
+    print(f"  FPR:          {agg_enh['fpr']:.4f}")
+    print(f"  FNR:          {agg_enh['fnr']:.4f}")
+    print(f"  F1 Score:     {agg_enh['f1']:.4f}")
     print(f"  Predictions:  {agg_enh['num_predictions']}")
     print(f"  Ground Truths: {agg_enh['num_gts']}")
+
+    print(f"\nNaive Fused Branch:")
+    print(f"  mAP@[.5:.95]: {agg_naive_fused['mAP_50_95']:.4f}")
+    print(f"  mAP@50:       {agg_naive_fused['mAP_50']:.4f}")
+    print(f"  mAP@75:       {agg_naive_fused['mAP_75']:.4f}")
+    print(f"  Precision:    {agg_naive_fused['precision']:.4f}")
+    print(f"  Recall:       {agg_naive_fused['recall']:.4f}")
+    print(f"  FPR:          {agg_naive_fused['fpr']:.4f}")
+    print(f"  FNR:          {agg_naive_fused['fnr']:.4f}")
+    print(f"  F1 Score:     {agg_naive_fused['f1']:.4f}")
+    print(f"  Predictions:  {agg_naive_fused['num_predictions']}")
+    print(f"  Ground Truths: {agg_naive_fused['num_gts']}")
     
     print(f"\nFused Branch:")
     print(f"  mAP@[.5:.95]: {agg_fused['mAP_50_95']:.4f}")
     print(f"  mAP@50:       {agg_fused['mAP_50']:.4f}")
+    print(f"  mAP@75:       {agg_fused['mAP_75']:.4f}")
+    print(f"  Precision:    {agg_fused['precision']:.4f}")
     print(f"  Recall:       {agg_fused['recall']:.4f}")
+    print(f"  FPR:          {agg_fused['fpr']:.4f}")
+    print(f"  FNR:          {agg_fused['fnr']:.4f}")
+    print(f"  F1 Score:     {agg_fused['f1']:.4f}")
     print(f"  Predictions:  {agg_fused['num_predictions']}")
     print(f"  Ground Truths: {agg_fused['num_gts']}")
-    
-    print(f"\nComparison (Fused vs Original):")
-    print(f"  Δ mAP@50: {agg_fused['mAP_50'] - agg_orig['mAP_50']:+.4f}")
-    print(f"  Δ mAP@[.5:.95]: {agg_fused['mAP_50_95'] - agg_orig['mAP_50_95']:+.4f}")
-    print(f"  Δ Recall: {agg_fused['recall'] - agg_orig['recall']:+.4f}")
-    
-    print(f"Results saved to {output_dir}")
+
     if vis_output_dir: print(f"Visualizations saved to {vis_output_dir}")
 
 
@@ -707,7 +826,7 @@ if __name__ == "__main__":
                        help='YOLO model path')
     parser.add_argument('--conf_thresh', type=float, default=0.2, 
                        help='YOLO confidence threshold')
-    parser.add_argument('--max_box_width_ratio', type=float, default=0.9,
+    parser.add_argument('--max_box_width_ratio', type=float, default=0.7,
                        help='Maximum allowed box width percent of image width (filters car hoods)')
     
     # Fusion parameters
